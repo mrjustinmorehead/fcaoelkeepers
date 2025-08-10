@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FCAOEL Unique Commissioner Keeper (F-U-C-K) Tool — Netlify (Blobs)</title>
+<style>
+  :root { --tx-blue:#03202F; --tx-red:#A71930; --tx-white:#FFFFFF; --border:#e6e6e6; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+         background:var(--tx-white); margin:0; padding:24px; color:#111; }
+  h1 { margin:0; font-size:24px; }
+  .wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 12px; }
+  .row { display:flex; gap:12px; align-items:flex-end; justify-content:space-between; flex-wrap: wrap; }
+  .card { background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); border:1px solid var(--border); }
+  .card .content { padding:12px; }
+  .controls { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+  .select, .btn, .input, .btn-outline { border:1px solid var(--border); border-radius:12px; padding:8px 12px; background:#fff; font-size:14px; }
+  .btn { background:var(--tx-red); color:#fff; cursor:pointer; }
+  .btn[disabled] { opacity: .5; cursor: not-allowed; }
+  .btn-outline { background:#fff; color:var(--tx-blue); cursor:pointer; }
+  .badge { border:1px solid var(--border); border-radius: 999px; padding: 6px 10px; background:#fff; color:#03202F; font-weight:600; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .mgr-card { border:1px solid var(--border); border-radius:8px; padding:8px; background:#fff; }
+  .mgr-name { font-weight:600; color:var(--tx-blue); margin-bottom:4px; font-size:13px; }
+  .keepers { margin:0; padding-left: 16px; }
+  .keepers li { font-size:12px; margin: 1px 0; }
+
+  .keeper-box { border-radius:10px; padding:10px; }
+  .k1 { background: rgba(3,32,47,0.06); }
+  .k2 { background: rgba(167,25,48,0.06); }
+
+  .table-scroll { max-height: 58vh; overflow: auto; }
+  table { width:100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+  thead th { position: sticky; top: 0; z-index: 1; background: var(--tx-blue); color: #fff; }
+  th, td { padding:10px; text-align:left; }
+  tbody tr + tr { border-top: 1px solid var(--border); }
+
+  .toast { position: fixed; right: 16px; bottom: 16px; background: #03202F; color: #fff; padding: 10px 12px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.2); opacity: 0; transform: translateY(8px); transition: all .25s ease; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .muted { color:#666; font-size:12px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row" style="background:var(--tx-blue); color:var(--tx-white); border-radius:12px; padding:12px;">
+      <div>
+        <h1>FCAOEL Unique Commissioner Keeper (F-U-C-K) Tool</h1>
+        <div id="lockLabel" style="font-size:12px; margin-top:4px; display:none;"></div>
+        <div id="saveStatus" class="muted" style="margin-top:6px; display:none;"></div>
+      </div>
+      <div class="controls">
+        <select id="managerFilter" class="select"></select>
+        <button id="toggleSummaryBtn" class="btn-outline">Show Summary</button>
+        <button id="saveBtn" class="btn">Save (Server)</button>
+        <div id="selBadge" class="badge">Selected: 0/2</div>
+      </div>
+    </div>
+
+    <div id="summaryPanel" class="card" style="display:none;">
+      <div class="content">
+        <h2 style="margin:0 0 6px 0; color:var(--tx-blue); font-size:16px;">League Keepers Summary</h2>
+        <div class="summary-grid" id="summaryGrid"></div>
+      </div>
+    </div>
+
+    <div id="keepersPanel" class="card" style="display:none;">
+      <div class="content">
+        <h2 style="margin:0 0 6px 0; color:var(--tx-blue); font-size:16px;" id="keepersTitle">Keepers</h2>
+        <div class="row" style="align-items:stretch;">
+          <div class="keeper-box k1" style="flex:1; min-width:260px;">
+            <div style="font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--tx-blue)">Keeper 1</div>
+            <div id="k1Body" style="margin-top:6px; font-size:14px; color:#111;">Select a player to assign as Keeper 1.</div>
+          </div>
+          <div class="keeper-box k2" style="flex:1; min-width:260px;">
+            <div style="font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--tx-red)">Keeper 2</div>
+            <div id="k2Body" style="margin-top:6px; font-size:14px; color:#111;">Select a second player to assign as Keeper 2.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="content" style="padding:0;">
+        <div class="table-scroll">
+          <table id="tbl">
+            <thead>
+              <tr>
+                <th>Keep?</th>
+                <th>Player</th>
+                <th>Manager</th>
+                <th>Drafted</th>
+                <th>Eligible</th>
+                <th>Base Keep Rd</th>
+                <th>Assigned Keep Rd</th>
+                <th>Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Saved</div>
+
+<script>
+(function(){
+  var PRELOADED = [{"id": "ccdf621ffcd1295e", "name": "Joe Burrow", "draftedRound": 2, "manager": "AMG"}, {"id": "a077d7d8811b0d25", "name": "Puka Nacua", "draftedRound": 12, "manager": "AMG"}, {"id": "ddc840b43236cb38", "name": "Garrett Wilson", "draftedRound": 10, "manager": "AMG"}, {"id": "60d5966269b854fd", "name": "James Conner", "draftedRound": 4, "manager": "AMG"}, {"id": "d8519a712f15df97", "name": "Joe Mixon", "draftedRound": 3, "manager": "AMG"}, {"id": "4abcbee0ac26966b", "name": "Chigoziem Okonkwo", "draftedRound": null, "manager": "AMG"}, {"id": "e8b3a3515e3565f6", "name": "Ja'Marr Chase", "draftedRound": 1, "manager": "AMG"}, {"id": "51a79162a1aaa9a9", "name": "Zach Ertz", "draftedRound": null, "manager": "AMG"}, {"id": "f000ca38343b9fd1", "name": "Drake Maye", "draftedRound": null, "manager": "AMG"}, {"id": "6ed07549950bde0e", "name": "Adam Thielen", "draftedRound": 13, "manager": "AMG"}, {"id": "e9450bcb784b9b21", "name": "Keon Coleman", "draftedRound": 8, "manager": "AMG"}, {"id": "3272d01e474a9e3a", "name": "Alexander Mattison", "draftedRound": null, "manager": "AMG"}, {"id": "a5c91c37fc288cab", "name": "J.. Dobbins", "draftedRound": 14, "manager": "AMG"}, {"id": "30ab4d44bca8159c", "name": "Chase McLaughlin", "draftedRound": null, "manager": "AMG"}, {"id": "225c31ed5f91638a", "name": "Indianapolis", "draftedRound": null, "manager": "AMG"}, {"id": "c949d423f612014b", "name": "Taysom Hill", "draftedRound": null, "manager": "AMG"}, {"id": "0fa3fb89db68500f", "name": "Kyler Murray", "draftedRound": 13, "manager": "Mustard on da Beat Hoe"}, {"id": "eb9d35fa23f4c16d", "name": "Jayden Reed", "draftedRound": 12, "manager": "Mustard on da Beat Hoe"}, {"id": "257bccd7ff001753", "name": "Olamide Zaccheaus", "draftedRound": null, "manager": "Mustard on da Beat Hoe"}, {"id": "554e607f94842ad9", "name": "Jaylen Warren", "draftedRound": 6, "manager": "Mustard on da Beat Hoe"}, {"id": "583d2a76a58c59aa", "name": "Zach Chaonnet", "draftedRound": 10, "manager": "Mustard on da Beat Hoe"}, {"id": "7784c6647a45b4da", "name": "Travis Kelce", "draftedRound": 2, "manager": "Mustard on da Beat Hoe"}, {"id": "27a096666a13502c", "name": "James Coo", "draftedRound": 3, "manager": "Mustard on da Beat Hoe"}, {"id": "2d823a43a6c64396", "name": "Tim Patrick", "draftedRound": null, "manager": "Mustard on da Beat Hoe"}, {"id": "1727fc2a1cb2d980", "name": "Anthony Richardson Sr.", "draftedRound": 3, "manager": "Mustard on da Beat Hoe"}, {"id": "21c7da3a4b7b50b2", "name": "Hollywood Brown", "draftedRound": 8, "manager": "Mustard on da Beat Hoe"}, {"id": "db383ad2f68b9811", "name": "DeAndre Hopins", "draftedRound": 8, "manager": "Mustard on da Beat Hoe"}, {"id": "09b8c0323343ae1f", "name": "Craig Reynolds", "draftedRound": null, "manager": "Mustard on da Beat Hoe"}, {"id": "e428a58cd65d2e08", "name": "Will Reichard", "draftedRound": null, "manager": "Mustard on da Beat Hoe"}, {"id": "183607139e1ed6ca", "name": "Brandon Aubrey", "draftedRound": 12, "manager": "Mustard on da Beat Hoe"}, {"id": "b4a3f19bdad569c0", "name": "Miami", "draftedRound": 10, "manager": "Mustard on da Beat Hoe"}, {"id": "dd6498ab6c116d00", "name": "Rashee Rice", "draftedRound": 13, "manager": "Mustard on da Beat Hoe"}, {"id": "4bd2326aac2cc9ca", "name": "Baer Mayfield", "draftedRound": 12, "manager": "Canada Steve"}, {"id": "7ea5c44287fbe268", "name": "Davan Adams", "draftedRound": 2, "manager": "Canada Steve"}, {"id": "771f5e99656a0644", "name": "Amari Cooper", "draftedRound": 5, "manager": "Canada Steve"}, {"id": "deedf3f2aefcdca4", "name": "Jonathan Taylor", "draftedRound": 1, "manager": "Canada Steve"}, {"id": "87638abe13ab1296", "name": "Ameer Abdullah", "draftedRound": null, "manager": "Canada Steve"}, {"id": "472d46e8f93435d5", "name": "T.J. Hocenson", "draftedRound": 8, "manager": "Canada Steve"}, {"id": "ff11b85946867c23", "name": "Tan Bigsby", "draftedRound": null, "manager": "Canada Steve"}, {"id": "d4a4e14d4f1ed3ea", "name": "Tyler Allgeier", "draftedRound": 15, "manager": "Canada Steve"}, {"id": "9b5c66f9f06209d7", "name": "Cade Otton", "draftedRound": null, "manager": "Canada Steve"}, {"id": "16aa5bb80713672b", "name": "Elijah Moore", "draftedRound": null, "manager": "Canada Steve"}, {"id": "095d24ce2bd9d8f9", "name": "Cole met", "draftedRound": 7, "manager": "Canada Steve"}, {"id": "9bdf4431c9a2082a", "name": "Kendre Miller", "draftedRound": 13, "manager": "Canada Steve"}, {"id": "d9da39823431fe6c", "name": "Devaughn Vele", "draftedRound": null, "manager": "Canada Steve"}, {"id": "ed0ef7b9da2b71aa", "name": "Ka'imi Fairbairn", "draftedRound": 10, "manager": "Canada Steve"}, {"id": "d0c0772b5e366a37", "name": "Houston", "draftedRound": 9, "manager": "Canada Steve"}, {"id": "be6753e7aa961593", "name": "Find the Hole 😈", "draftedRound": null, "manager": "nan"}, {"id": "16f0fca4fbe4dbfe", "name": "Player", "draftedRound": null, "manager": "nan"}, {"id": "931222e6fddfde32", "name": "Jayden Daniels", "draftedRound": 6, "manager": "Find the Hole 😈"}, {"id": "924f1d5ea348e1e2", "name": "Amon-Ra St. Brown", "draftedRound": 1, "manager": "Find the Hole 😈"}, {"id": "28276f4b96f0881a", "name": "Khalil Shakir", "draftedRound": 14, "manager": "Find the Hole 😈"}, {"id": "1679682f9c98e145", "name": "Travis Etienne Jr.", "draftedRound": 2, "manager": "Find the Hole 😈"}, {"id": "29dcab00fbaf1d6c", "name": "Jaleel McLaughlin", "draftedRound": 15, "manager": "Find the Hole 😈"}, {"id": "588eb4da05942e29", "name": "Kyle Pitts", "draftedRound": 4, "manager": "Find the Hole 😈"}, {"id": "abe39951ccd7334e", "name": "Raheem Blacshear", "draftedRound": null, "manager": "Find the Hole 😈"}, {"id": "b01737a6e47076f3", "name": "Christian Watson", "draftedRound": 10, "manager": "Find the Hole 😈"}, {"id": "d0b0be90848e3221", "name": "Chuba Hubbard", "draftedRound": 11, "manager": "Find the Hole 😈"}, {"id": "a32b2e15089389e9", "name": "Jaylen Waddle", "draftedRound": 3, "manager": "Find the Hole 😈"}, {"id": "04300c487ded045c", "name": "Kenneth Walker III", "draftedRound": 8, "manager": "Find the Hole 😈"}, {"id": "bd011b29c8b035b6", "name": "Nic Chubb", "draftedRound": 9, "manager": "Find the Hole 😈"}, {"id": "202176ef5332c943", "name": "Aaron Rodgers", "draftedRound": 13, "manager": "Find the Hole 😈"}, {"id": "1881ef0311881909", "name": "Jae Bas", "draftedRound": null, "manager": "Find the Hole 😈"}, {"id": "581a8df793b8dfde", "name": "Cincinnati", "draftedRound": null, "manager": "Find the Hole 😈"}, {"id": "20ad8fdababa9ef3", "name": "Chris Godwin", "draftedRound": 7, "manager": "Find the Hole 😈"}, {"id": "b9446f016048e8bd", "name": "Bo Nix", "draftedRound": 14, "manager": "Hchfufib"}, {"id": "d5bfebbd9007fecb", "name": "Jauan Jennings", "draftedRound": 11, "manager": "Hchfufib"}, {"id": "d49fa25a03386ee0", "name": "Zay Flowers", "draftedRound": 6, "manager": "Hchfufib"}, {"id": "06b62dd4befec43d", "name": "Josh Jacobs", "draftedRound": 2, "manager": "Hchfufib"}, {"id": "d7b537cb5365d0b3", "name": "Justice Hill", "draftedRound": 8, "manager": "Hchfufib"}, {"id": "b6bb5814add59eb6", "name": "George ittle", "draftedRound": 4, "manager": "Hchfufib"}, {"id": "bf0b4a528c17ef46", "name": "Romeo Doubs", "draftedRound": 3, "manager": "Hchfufib"}, {"id": "e97507a20e84138c", "name": "Tucer raft", "draftedRound": null, "manager": "Hchfufib"}, {"id": "d84664e2cc1ae8ca", "name": "Jameis Winston", "draftedRound": null, "manager": "Hchfufib"}, {"id": "a1885f605dd4e5cc", "name": "Isaiah Davis", "draftedRound": null, "manager": "Hchfufib"}, {"id": "a8ae41983f3d48bb", "name": "Rashod Baman", "draftedRound": 12, "manager": "Hchfufib"}, {"id": "3ce33fb2a6408649", "name": "Justin Tucer Bal SUSP", "draftedRound": 1, "manager": "Hchfufib"}, {"id": "ab1986dca57c1a79", "name": "Blae Grupe", "draftedRound": 13, "manager": "Hchfufib"}, {"id": "ffd2b544a8944801", "name": "San Francisco", "draftedRound": 7, "manager": "Hchfufib"}, {"id": "f8294acb7fb560dc", "name": "New Orleans", "draftedRound": 11, "manager": "Hchfufib"}, {"id": "69ddf5617e4c3dc3", "name": "Elijah Mitchell", "draftedRound": 9, "manager": "Hchfufib"}, {"id": "222d1e2da4f460f9", "name": "Jared Goff", "draftedRound": 6, "manager": "Worse than the Browns?"}, {"id": "6e8e5ccdac2130ae", "name": "Tyree Hill", "draftedRound": 1, "manager": "Worse than the Browns?"}, {"id": "d721ca0c895b8c95", "name": "Brandin Coos", "draftedRound": 14, "manager": "Worse than the Browns?"}, {"id": "0c9249943f24c998", "name": "Jonathon Broos", "draftedRound": 6, "manager": "Worse than the Browns?"}, {"id": "22f565cc5b44b9c7", "name": "Kareem Hunt", "draftedRound": null, "manager": "Worse than the Browns?"}, {"id": "6f2d7efccd464b1b", "name": "Sam LaPorta", "draftedRound": 2, "manager": "Worse than the Browns?"}, {"id": "9f6a8c4d9619e3ed", "name": "Mie Evans", "draftedRound": 3, "manager": "Worse than the Browns?"}, {"id": "775c9eeaf31ece15", "name": "Ladd McConey", "draftedRound": 10, "manager": "Worse than the Browns?"}, {"id": "d7fae54509b50714", "name": "Roschon Johnson", "draftedRound": 15, "manager": "Worse than the Browns?"}, {"id": "4c694d745e3aad8c", "name": "Rhamondre Svenson", "draftedRound": 5, "manager": "Worse than the Browns?"}, {"id": "f2538c5db794ac0f", "name": "Michael Pittman Jr.", "draftedRound": 4, "manager": "Worse than the Browns?"}, {"id": "8d970955c8096815", "name": "Michael Wilson", "draftedRound": null, "manager": "Worse than the Browns?"}, {"id": "392d7e65372795eb", "name": "Matthew Stafford", "draftedRound": 9, "manager": "Worse than the Browns?"}, {"id": "1cc4e616895096ee", "name": "Chad Ryland", "draftedRound": null, "manager": "Worse than the Browns?"}, {"id": "71d2cb8d712e9ea5", "name": "nnessee n", "draftedRound": null, "manager": "Worse than the Browns?"}, {"id": "dd9de005db77f608", "name": "Lamar Jacson", "draftedRound": 2, "manager": "The Old Pin and Pull"}, {"id": "ff363f211e25e12a", "name": "Justin Jefferson", "draftedRound": 1, "manager": "The Old Pin and Pull"}, {"id": "81772acc01cf61ae", "name": "Jaxon Smith-Njigba", "draftedRound": 8, "manager": "The Old Pin and Pull"}, {"id": "4bd9c37dd5e8d3b4", "name": "Najee Harris", "draftedRound": 5, "manager": "The Old Pin and Pull"}, {"id": "9cdf6c2a2f67f847", "name": "Javon Williams", "draftedRound": 5, "manager": "The Old Pin and Pull"}, {"id": "7e3ed50e1010f096", "name": "Dalton incaid", "draftedRound": 3, "manager": "The Old Pin and Pull"}, {"id": "21f3524a370e3e43", "name": "DJ Moore", "draftedRound": 4, "manager": "The Old Pin and Pull"}, {"id": "1b6390a19c4508bc", "name": "Juwan Johnson", "draftedRound": null, "manager": "The Old Pin and Pull"}, {"id": "1df6f000811c9202", "name": "Devin Singletary", "draftedRound": 6, "manager": "The Old Pin and Pull"}, {"id": "f58f51626088c347", "name": "Drew Loc", "draftedRound": null, "manager": "The Old Pin and Pull"}, {"id": "101d702a485e7803", "name": "Josh Downs", "draftedRound": 15, "manager": "The Old Pin and Pull"}, {"id": "e19b09b4089aa186", "name": "Antonio Gibson", "draftedRound": 14, "manager": "The Old Pin and Pull"}, {"id": "88e40b5a08c3a30a", "name": "Diontae Johnson", "draftedRound": 7, "manager": "The Old Pin and Pull"}, {"id": "63415931ae66b261", "name": "Jason Sanders", "draftedRound": 12, "manager": "The Old Pin and Pull"}, {"id": "f542d829956fd25f", "name": "Tampa Bay", "draftedRound": null, "manager": "The Old Pin and Pull"}, {"id": "0e0a12bc62b7de88", "name": "Theo Johnson", "draftedRound": null, "manager": "The Old Pin and Pull"}, {"id": "5a97f5ddd9395eec", "name": "Josh Allen", "draftedRound": 2, "manager": "Mighty Canucks"}, {"id": "259bf2a190f50e7e", "name": "Jameson Williams", "draftedRound": 10, "manager": "Mighty Canucks"}, {"id": "f0a4a3783287b238", "name": "Calvin Ridley n", "draftedRound": 6, "manager": "Mighty Canucks"}, {"id": "25b52e8debb9aa05", "name": "Derric Henry", "draftedRound": 1, "manager": "Mighty Canucks"}, {"id": "022da7fbb45dc029", "name": "Brian Robinson Jr.", "draftedRound": 7, "manager": "Mighty Canucks"}, {"id": "af6bf04f3f3896d0", "name": "Jonnu Smith", "draftedRound": null, "manager": "Mighty Canucks"}, {"id": "a30ec52b13bbb95a", "name": "Courtland Sutton", "draftedRound": 11, "manager": "Mighty Canucks"}, {"id": "d03a5cc7a2f0a6f9", "name": "Broc Purdy", "draftedRound": 5, "manager": "Mighty Canucks"}, {"id": "da7a25fa02d74f6c", "name": "Isiah Pacheco", "draftedRound": 4, "manager": "Mighty Canucks"}, {"id": "f210ab8472dfbebf", "name": "Quentin Johnston", "draftedRound": 14, "manager": "Mighty Canucks"}, {"id": "817ca2a9056ed4da", "name": "Sincere McCormic", "draftedRound": null, "manager": "Mighty Canucks"}, {"id": "b5fb61c5fe6fb1c9", "name": "KaVontae Turpin", "draftedRound": 15, "manager": "Mighty Canucks"}, {"id": "2667208b8ad5212a", "name": "Jalen McMillan", "draftedRound": null, "manager": "Mighty Canucks"}, {"id": "df9137cc02e1a154", "name": "Jae Moody", "draftedRound": 13, "manager": "Mighty Canucks"}, {"id": "f5de963e3c325831", "name": "Philadelphia", "draftedRound": 12, "manager": "Mighty Canucks"}, {"id": "439de958a1d1374d", "name": "Justin Heert", "draftedRound": 8, "manager": "WestUp or VestUp"}, {"id": "3a1817add1259c20", "name": "Marvin Harrison Jr.", "draftedRound": 2, "manager": "WestUp or VestUp"}, {"id": "f071f54b2537a7a2", "name": "Keenan Allen", "draftedRound": 6, "manager": "WestUp or VestUp"}, {"id": "5e215a80b6614521", "name": "Jahmyr Gibbs", "draftedRound": 1, "manager": "WestUp or VestUp"}, {"id": "2742e79b601aed50", "name": "Jerome Ford", "draftedRound": 7, "manager": "WestUp or VestUp"}, {"id": "1db9ba9949a24d82", "name": "Pat Freiermuth", "draftedRound": 9, "manager": "WestUp or VestUp"}, {"id": "0ca2f36f666d8b12", "name": "Marquez Valdes-Scantling", "draftedRound": null, "manager": "WestUp or VestUp"}, {"id": "7f1c8196c164c218", "name": "Nico Collins", "draftedRound": 3, "manager": "WestUp or VestUp"}, {"id": "7cc4c12ef460f3da", "name": "D'Andre Swift", "draftedRound": 4, "manager": "WestUp or VestUp"}, {"id": "aa47fb0cc088c6ff", "name": "DeMario Douglas", "draftedRound": 12, "manager": "WestUp or VestUp"}, {"id": "38d49de594cdf135", "name": "Cedric Tillman", "draftedRound": null, "manager": "WestUp or VestUp"}, {"id": "4524cc234cb25e29", "name": "Geno Smith", "draftedRound": 14, "manager": "WestUp or VestUp"}, {"id": "ac2d245ebe17f3bf", "name": "Andrei Iosivas", "draftedRound": 15, "manager": "WestUp or VestUp"}, {"id": "eca7bdc23f2ba977", "name": "Jae Elliott", "draftedRound": 10, "manager": "WestUp or VestUp"}, {"id": "1bcd8218281f9b1b", "name": "ansas City", "draftedRound": 9, "manager": "WestUp or VestUp"}, {"id": "48604eee96941661", "name": "C.J. Stroud", "draftedRound": 3, "manager": "The Texans did Watt?"}, {"id": "12f34639ea8bcad5", "name": "Mali Nabers", "draftedRound": 4, "manager": "The Texans did Watt?"}, {"id": "45b4973ae7d5f576", "name": "Drae London", "draftedRound": 2, "manager": "The Texans did Watt?"}, {"id": "0ecfc2b037c8254b", "name": "Rico Dowdle", "draftedRound": 11, "manager": "The Texans did Watt?"}, {"id": "c80a68fb13958190", "name": "Breece Hall", "draftedRound": 1, "manager": "The Texans did Watt?"}, {"id": "7cc70daad57bb4d8", "name": "Mie Gesici", "draftedRound": null, "manager": "The Texans did Watt?"}, {"id": "6d8f982c3433ce52", "name": "Brian Thomas Jr.", "draftedRound": 9, "manager": "The Texans did Watt?"}, {"id": "3654a3e869565dd9", "name": "Tua Tagovailoa", "draftedRound": 10, "manager": "The Texans did Watt?"}, {"id": "57cb20031f975a66", "name": "Tyrone Tracy Jr.", "draftedRound": 15, "manager": "The Texans did Watt?"}, {"id": "87f155e7101cdeeb", "name": "Rachaad Whi", "draftedRound": 10, "manager": "The Texans did Watt?"}, {"id": "94ed47edc9b1d29c", "name": "Xavier Worthy", "draftedRound": 6, "manager": "The Texans did Watt?"}, {"id": "0b0d26f0bbcf34be", "name": "Michael Penix Jr.", "draftedRound": null, "manager": "The Texans did Watt?"}, {"id": "2195c03e580910e7", "name": "Ricy Pearsall", "draftedRound": null, "manager": "The Texans did Watt?"}, {"id": "ff35c19e021903af", "name": "Joshua arty", "draftedRound": null, "manager": "The Texans did Watt?"}, {"id": "33c255ab3c9b5e8f", "name": "Minnesota", "draftedRound": null, "manager": "The Texans did Watt?"}, {"id": "5dee50b6100a99a6", "name": "Evan Engram", "draftedRound": 5, "manager": "The Texans did Watt?"}, {"id": "65dae38ed0bfcada", "name": "Jordan Love", "draftedRound": 3, "manager": "Hawk Tuah"}, {"id": "dc2edf5ebf18b2a9", "name": "Deebo Samuel", "draftedRound": 2, "manager": "Hawk Tuah"}, {"id": "955b444acb43b393", "name": "Calvin Austin III", "draftedRound": null, "manager": "Hawk Tuah"}, {"id": "13d2c38e77a8726f", "name": "Gus Edwards", "draftedRound": 7, "manager": "Hawk Tuah"}, {"id": "3d67ab35a36f51b7", "name": "Bijan Robinson", "draftedRound": 1, "manager": "Hawk Tuah"}, {"id": "3cf1eb28816a619c", "name": "Broc Bowers", "draftedRound": 5, "manager": "Hawk Tuah"}, {"id": "d29eadb4cd03fd2b", "name": "Xavier Leget", "draftedRound": 15, "manager": "Hawk Tuah"}, {"id": "736bc4af07e65891", "name": "Terry McLaurin", "draftedRound": 7, "manager": "Hawk Tuah"}, {"id": "e1e98e77bb94b0b9", "name": "Dalton Schultz", "draftedRound": 10, "manager": "Hawk Tuah"}, {"id": "bed589cb79715234", "name": "Kirk Cousins", "draftedRound": 8, "manager": "Hawk Tuah"}, {"id": "2279d150f32d2cbc", "name": "Demarcus Robinson", "draftedRound": null, "manager": "Hawk Tuah"}, {"id": "55e2947cde788e59", "name": "Hunr Henry", "draftedRound": 11, "manager": "Hawk Tuah"}, {"id": "87bfb34c1d904bab", "name": "Tre Tucer", "draftedRound": null, "manager": "Hawk Tuah"}, {"id": "a7d7225f0272fc5f", "name": "Dustin Hopins", "draftedRound": null, "manager": "Hawk Tuah"}, {"id": "522aad6981d9b746", "name": "Los Angeles", "draftedRound": null, "manager": "Hawk Tuah"}, {"id": "fa0a8c3bd143209e", "name": "Caleb Williams", "draftedRound": 7, "manager": "Osteobashers"}, {"id": "6aad38ffbb89680d", "name": "Jaobi Meyers", "draftedRound": 13, "manager": "Osteobashers"}, {"id": "c4de9f3507d9caba", "name": "Tee Higgins", "draftedRound": 5, "manager": "Osteobashers"}, {"id": "2e8db0779115372f", "name": "Kyren Williams", "draftedRound": 12, "manager": "Osteobashers"}, {"id": "3bd338bfbe44dc3f", "name": "Bucy Irving", "draftedRound": 14, "manager": "Osteobashers"}, {"id": "b2eb17fb923f4ead", "name": "Mar Andrews", "draftedRound": 3, "manager": "Osteobashers"}, {"id": "a08314bf479cdd6f", "name": "DeVonta Smith", "draftedRound": 4, "manager": "Osteobashers"}, {"id": "9b1937182593af5e", "name": "Isaac Guerendo", "draftedRound": null, "manager": "Osteobashers"}, {"id": "f5f0265a50fb8da0", "name": "Tyler Conlin", "draftedRound": 15, "manager": "Osteobashers"}, {"id": "1d2ddeb776e34756", "name": "Russell Wilson", "draftedRound": null, "manager": "Osteobashers"}, {"id": "7914da7d426bd85e", "name": "Rome Odunze", "draftedRound": 8, "manager": "Osteobashers"}, {"id": "cdf753ae17f19b44", "name": "Tyjae Spears n", "draftedRound": 6, "manager": "Osteobashers"}, {"id": "ae64404baeac1485", "name": "Chris Boswell", "draftedRound": null, "manager": "Osteobashers"}, {"id": "59326fed16166179", "name": "Denver", "draftedRound": null, "manager": "Osteobashers"}, {"id": "bf698b0bb6ac8e12", "name": "Pittsburgh", "draftedRound": 9, "manager": "Osteobashers"}, {"id": "93e82a4b90c0d055", "name": "Chris Olave", "draftedRound": 6, "manager": "Osteobashers"}, {"id": "e0b3c56173a7c4d2", "name": "Sam Darnold", "draftedRound": null, "manager": "Future Commish"}, {"id": "633c450631e9d0e3", "name": "Cooper upp", "draftedRound": 4, "manager": "Future Commish"}, {"id": "7a6d78df1133f8b5", "name": "Jordan Addison Min SUSP", "draftedRound": 6, "manager": "Future Commish"}, {"id": "af7dd9ac6065baa7", "name": "Saquon Barley", "draftedRound": 1, "manager": "Future Commish"}, {"id": "95973c23d9b380cf", "name": "Patric Taylor Jr.", "draftedRound": null, "manager": "Future Commish"}, {"id": "690bc252d3c2b253", "name": "Trey McBride", "draftedRound": 12, "manager": "Future Commish"}, {"id": "3b9ba7da694683ca", "name": "Jerry Jeudy", "draftedRound": null, "manager": "Future Commish"}, {"id": "3d1a09fc24355d86", "name": "Alvin amara", "draftedRound": 3, "manager": "Future Commish"}, {"id": "3679fc19d146f742", "name": "Patric Mahomes", "draftedRound": 2, "manager": "Future Commish"}, {"id": "6b8d57e400eedd9d", "name": "George Picens", "draftedRound": 5, "manager": "Future Commish"}, {"id": "177958b1904f36bf", "name": "Wan'Dale Robinson", "draftedRound": null, "manager": "Future Commish"}, {"id": "4f1b7656c5b279df", "name": "Grant Calcarra", "draftedRound": null, "manager": "Future Commish"}, {"id": "5ed320b4cc91d6eb", "name": "Tyler Bass", "draftedRound": 12, "manager": "Future Commish"}, {"id": "6741025c92d61dcd", "name": "Jason Myers", "draftedRound": null, "manager": "Future Commish"}, {"id": "11d71557f495045a", "name": "Detroit", "draftedRound": 10, "manager": "Future Commish"}, {"id": "8d5a740b385b186a", "name": "Jalen Hurts", "draftedRound": 2, "manager": "Improbable Commish"}, {"id": "28cff9f8f1b80a04", "name": "A.J. Brown", "draftedRound": 1, "manager": "Improbable Commish"}, {"id": "5e7e5803990c6b05", "name": "DK Metcalf", "draftedRound": 4, "manager": "Improbable Commish"}, {"id": "0387872b1079aa45", "name": "Aaron Jones Sr.", "draftedRound": 3, "manager": "Improbable Commish"}, {"id": "25bc762b8dd1d731", "name": "Chase Brown", "draftedRound": 7, "manager": "Improbable Commish"}, {"id": "f37174f48e22fb38", "name": "Jae Ferguson", "draftedRound": 5, "manager": "Improbable Commish"}, {"id": "d866820150b08be6", "name": "De'Von Achane", "draftedRound": 9, "manager": "Improbable Commish"}, {"id": "58dab010c7c6b79f", "name": "Tony Pollard n", "draftedRound": 6, "manager": "Improbable Commish"}, {"id": "f522d0e8eaf0036a", "name": "Lue Schoonmaer", "draftedRound": null, "manager": "Improbable Commish"}, {"id": "851907f1b3b0176e", "name": "Ray-Ray McCloud III", "draftedRound": null, "manager": "Improbable Commish"}, {"id": "3c3978b71e5b1f15", "name": "Darnell Mooney", "draftedRound": 11, "manager": "Improbable Commish"}, {"id": "1701221e9fae4831", "name": "Cameron Dicker", "draftedRound": 14, "manager": "Improbable Commish"}, {"id": "5c48603b7fad66ba", "name": "Washington Commanders D/ST", "draftedRound": null, "manager": "Improbable Commish"}, {"id": "42a0dbc70a5d665f", "name": "Buffalo Bills D/ST", "draftedRound": 10, "manager": "Improbable Commish"}, {"id": "412d76a9c7e44d60", "name": "Baltimore Ravens D/ST", "draftedRound": 12, "manager": "Improbable Commish"}];
+
+  var MAX_KEEPERS = 2;
+  var MIN_ELIGIBLE_ROUND = 6;
+  var UNDRAFTED_KEEP_ROUND = 12;
+  var ROUND_DISCOUNT = 2;
+  var SEASON = 2024;
+
+  var BANNED_NAMES = new Set(["Christian Kirk","Chris Olave","Tua Tagovailoa","Kenneth Walker III","Garrett Wilson","Rachaad White"]);
+
+  var urlParams = new URLSearchParams(window.location.search);
+  var lockManager = urlParams.get("manager");
+
+  var DST_MAP = {"49ers":"San Francisco 49ers D/ST","Eagles":"Philadelphia Eagles D/ST","Lions":"Detroit Lions D/ST","Dallas":"Dallas Cowboys D/ST","Bengals":"Cincinnati Bengals D/ST","Dolphins":"Miami Dolphins D/ST","Buffalo":"Buffalo Bills D/ST","Baltimore":"Baltimore Ravens D/ST","Washington":"Washington Commanders D/ST","Kansas City":"Kansas City Chiefs D/ST","Tennessee":"Tennessee Titans D/ST"};
+  function fixName(name) {
+    var n = String(name == null ? "" : name).replace(/\u00A0/g, " ");
+    n = n.replace(/\s*\((?:[^)]*)\)\s*$/, "").trim();
+    var DROP = new Set(["Q","O","D","IR","PUP","C","QB","RB","WR","TE","K","PK","DEF","DST","ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE","DAL","DEN","DET","GB","HOU","IND","JAX","KC","LAC","LAR","LV","MIA","MIN","NE","NO","NYG","NYJ","PHI","PIT","SEA","SF","TB","TEN","WAS","WSH"]);
+    var KEEP_SUFFIX = new Set(["JR","JR.","SR","SR.","II","III","IV","V"]);
+    var parts = n.split(/\s+/);
+    while (parts.length) {
+      var tok = parts[parts.length - 1];
+      var up = tok.toUpperCase();
+      if (KEEP_SUFFIX.has(up)) break;
+      if (DROP.has(up) || /^[A-Z]{2,3}$/.test(tok) || /^[A-Z]{1,3}-[A-Z]$/.test(tok) || /^[A-Z]$/.test(tok)) { parts.pop(); continue; }
+      break;
+    }
+    n = parts.join(" ");
+    var SPECIAL = {"Travis elce C":"Travis Kelce","Travis elce":"Travis Kelce","Travis Kelc":"Travis Kelce","Tim Patric":"Tim Patrick","Rashee Rice C":"Rashee Rice","Pua Nacua":"Puka Nacua","Drae Maye":"Drake Maye","Cameron Dicer":"Cameron Dicker","e Higgins":"Tee Higgins","eenan Allen":"Keenan Allen","endre Miller":"Kendre Miller","enneth Waler III":"Kenneth Walker III","eon Coleman":"Keon Coleman","ir Cousins":"Kirk Cousins","rry McLaurin":"Terry McLaurin","yle Pitts Sr.":"Kyle Pitts","yren Williams":"Kyren Williams","D Metcalf":"DK Metcalf","a'imi Faiairn":"Ka'imi Fairbairn","aVontae Turpin":"KaVontae Turpin","areem Hunt":"Kareem Hunt","halil Shair":"Khalil Shakir","Kansas City":"Kansas City Chiefs D/ST","Tennessee":"Tennessee Titans D/ST","Chig":"Chigoziem Okonkwo","Tua Tagovaiola":"Tua Tagovailoa"};
+    for (var k in SPECIAL) { if (Object.prototype.hasOwnProperty.call(SPECIAL,k) && n.indexOf(k) === 0) return SPECIAL[k]; }
+    if (DST_MAP[n]) return DST_MAP[n];
+    return n;
+  }
+
+  function getEligibility(p){
+    var name = fixName(p.name);
+    if (BANNED_NAMES.has(name)) return { eligible:false, reason: "2-season keeper cap" };
+    if (p.draftedRound == null) return { eligible:true, base: UNDRAFTED_KEEP_ROUND, reason: "" };
+    if (p.draftedRound >= MIN_ELIGIBLE_ROUND) return { eligible:true, base: Math.max(1, p.draftedRound - ROUND_DISCOUNT), reason: "" };
+    return { eligible:false, reason: "Drafted before 6th round" };
+  }
+  function baseKeepRound(p){ var e=getEligibility(p); return e.base != null ? e.base : null; }
+
+  var players = PRELOADED.slice();
+  var selected = Object.create(null);
+  var selectedManager = "all";
+  var summaryVisible = false;
+
+  var els = {
+    mgrFilter: document.getElementById("managerFilter"),
+    toggleSummaryBtn: document.getElementById("toggleSummaryBtn"),
+    saveBtn: document.getElementById("saveBtn"),
+    selBadge: document.getElementById("selBadge"),
+    tbody: document.getElementById("tbody"),
+    keepersPanel: document.getElementById("keepersPanel"),
+    keepersTitle: document.getElementById("keepersTitle"),
+    k1Body: document.getElementById("k1Body"),
+    k2Body: document.getElementById("k2Body"),
+    summaryPanel: document.getElementById("summaryPanel"),
+    summaryGrid: document.getElementById("summaryGrid"),
+    toast: document.getElementById("toast"),
+    lockLabel: document.getElementById("lockLabel"),
+    saveStatus: document.getElementById("saveStatus"),
+  };
+
+  function setSaveStatus(text, color){
+    els.saveStatus.style.display = "";
+    els.saveStatus.style.color = color || "#666";
+    els.saveStatus.textContent = text;
+  }
+  function clearSaveStatus(){ els.saveStatus.style.display = "none"; els.saveStatus.textContent = ""; }
+
+  var AUTO_SAVE_MS = 900;
+  var autoSaveTimer = null;
+  function scheduleAutoSave(){
+    if (!lockManager && selectedManager === "all") return; // don't auto-save without a specific manager
+    clearTimeout(autoSaveTimer);
+    setSaveStatus("Saving…", "#666");
+    autoSaveTimer = setTimeout(serverSave, AUTO_SAVE_MS);
+  }
+
+  function showToast(msg){
+    els.toast.textContent = msg || "Saved";
+    els.toast.classList.add("show");
+    setTimeout(function(){ els.toast.classList.remove("show"); }, 1400);
+  }
+
+  async function serverSave(){
+    var mgr = selectedManager;
+    if (!lockManager && mgr === "all"){ return; }
+    var keepRounds = assignedKeepRounds();
+    var picks = [];
+    for (var i=0;i<players.length;i++){
+      var p = players[i]; var e=getEligibility(p);
+      if (p.manager===mgr && selected[p.id] && e.eligible){
+        picks.push({
+          id: p.id,
+          player_name: fixName(p.name),
+          drafted_round: p.draftedRound==null? null : p.draftedRound,
+          base_keep_round: e.base,
+          assigned_keep_round: keepRounds[p.id]
+        });
+      }
+    }
+    if (picks.length > 2) picks = picks.slice(0,2);
+    var payload = { season: SEASON, manager: mgr, selections: picks };
+    try {
+      els.saveBtn.disabled = true;
+      var res = await fetch("/.netlify/functions/save", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
+      var txt = await res.text();
+      if (!res.ok){ setSaveStatus("Save failed: " + txt, "#A71930"); return; }
+      setSaveStatus("Auto-saved ✓", "#0a7d00");
+    } catch(err){
+      setSaveStatus("Save failed: " + (err.message || String(err)), "#A71930");
+    } finally {
+      els.saveBtn.disabled = false;
+    }
+  }
+
+  async function serverLoad(mgr){
+    try {
+      var res = await fetch("/.netlify/functions/load?season="+encodeURIComponent(SEASON)+"&manager="+encodeURIComponent(mgr));
+      if (!res.ok) return;
+      var data = await res.json();
+      if (!data || !Array.isArray(data.selections)) return;
+      selected = Object.create(null);
+      var count=0;
+      for (var i=0;i<data.selections.length;i++){
+        var s = data.selections[i];
+        if (!s || !s.id) continue;
+        var p = players.find(function(x){ return x.id === s.id; });
+        if (!p) continue;
+        var e = getEligibility(p);
+        if (!e.eligible) continue;
+        if (count >= 2) break;
+        selected[p.id] = true;
+        count++;
+      }
+      renderTable();
+      renderKeepersPanel();
+      setSaveStatus("Loaded server save ✓", "#0a7d00");
+    } catch(e){ /* ignore */ }
+  }
+
+  function keptByMgrMap(){ var m=new Map(); for (var i=0;i<players.length;i++){ var p=players[i]; var e=getEligibility(p); if (selected[p.id] && e.eligible) m.set(p.manager,(m.get(p.manager)||0)+1); } return m; }
+  function assignedKeepRounds(){
+    var out=Object.create(null), byMgr=new Map();
+    for (var i=0;i<players.length;i++){
+      var p=players[i];
+      if (selected[p.id] && getEligibility(p).eligible){
+        if(!byMgr.has(p.manager)) byMgr.set(p.manager,[]);
+        byMgr.get(p.manager).push(p);
+      }
+    }
+    var it=byMgr.entries();
+    for (var pr=it.next(); !pr.done; pr=it.next()){
+      var list=pr.value[1];
+      var base=list.map(function(p){return {id:p.id, round:baseKeepRound(p)};}); base.sort(function(a,b){return a.round-b.round;});
+      var taken=[]; for (var j=0;j<base.length;j++){ var item=base[j]; var r=item.round; if (taken.indexOf(r)!==-1) r=r+1; taken.push(r); out[item.id]=r; }
+    }
+    return out;
+  }
+
+  function managersList(){ var s=Object.create(null); for (var i=0;i<players.length;i++){ s[players[i].manager]=true; } return Object.keys(s).sort(); }
+
+  function renderSummaryPanel(){
+    if (selectedManager !== "all"){ els.summaryPanel.style.display = "none"; els.toggleSummaryBtn.textContent = "Show Summary"; return; }
+    els.toggleSummaryBtn.textContent = summaryVisible ? "Hide Summary" : "Show Summary";
+    els.summaryPanel.style.display = summaryVisible ? "" : "none";
+    if (!summaryVisible) return;
+
+    function managerKeepers(m){
+      var arr = [];
+      var keepRounds = assignedKeepRounds();
+      for (var i=0;i<players.length;i++){
+        var p=players[i];
+        if (p.manager===m && selected[p.id] && getEligibility(p).eligible){
+          var assigned = keepRounds[p.id];
+          arr.push({name: fixName(p.name), rd: assigned});
+        }
+      }
+      arr.sort(function(a,b){
+        if (a.rd == null && b.rd != null) return 1;
+        if (b.rd == null && a.rd != null) return -1;
+        if (a.rd !== b.rd) return a.rd - b.rd;
+        return a.name.localeCompare(b.name);
+      });
+      return arr;
+    }
+
+    var cols = [[],[],[],[]];
+    var mgrs = managersList();
+    for (var i=0;i<mgrs.length;i++){ cols[i%4].push(mgrs[i]); }
+    els.summaryGrid.innerHTML = "";
+    for (var c=0; c<cols.length; c++){
+      var colWrap = document.createElement("div");
+      for (var idx=0; idx<cols[c].length; idx++){
+        var m = cols[c][idx];
+        var wrap = document.createElement("div"); wrap.className="mgr-card";
+        var title = document.createElement("div"); title.className="mgr-name"; title.textContent = m;
+        var ol = document.createElement("ol"); ol.className="keepers";
+        var ks = managerKeepers(m);
+        if (ks.length === 0){
+          var li=document.createElement("li"); li.textContent="—"; ol.appendChild(li);
+        } else {
+          for (var k=0;k<ks.length;k++){ var li=document.createElement("li"); li.textContent=ks[k].name+" — Rd "+ks[k].rd; ol.appendChild(li); }
+        }
+        wrap.appendChild(title); wrap.appendChild(ol); colWrap.appendChild(wrap);
+      }
+      els.summaryGrid.appendChild(colWrap);
+    }
+  }
+
+  function renderManagers(){
+    var mgrs = managersList();
+    els.mgrFilter.innerHTML = "";
+    if (!lockManager){
+      var optAll = document.createElement("option"); optAll.value="all"; optAll.textContent="All Managers"; els.mgrFilter.appendChild(optAll);
+    }
+    for (var i=0;i<mgrs.length;i++){ var m=mgrs[i]; var opt=document.createElement("option"); opt.value=m; opt.textContent=m; els.mgrFilter.appendChild(opt); }
+    if (lockManager){
+      selectedManager = lockManager;
+      els.mgrFilter.value = lockManager;
+      els.mgrFilter.disabled = true;
+      els.lockLabel.style.display = ""; els.lockLabel.textContent = "Locked to manager: " + lockManager;
+      serverLoad(lockManager);
+    } else {
+      if (selectedManager !== "all" && mgrs.indexOf(selectedManager) === -1) selectedManager = "all";
+      els.mgrFilter.value = selectedManager;
+      if (selectedManager !== "all") serverLoad(selectedManager);
+    }
+  }
+
+  function renderKeepersPanel(){
+    if (selectedManager === "all"){ els.keepersPanel.style.display = "none"; return; }
+    els.keepersPanel.style.display = ""; els.keepersTitle.textContent = "Keepers for " + selectedManager;
+    var sel = []; for (var i=0;i<players.length;i++){ var p=players[i]; var e=getEligibility(p); if (selected[p.id] && e.eligible && p.manager===selectedManager) sel.push(p); }
+    sel.sort(function(a,b){ var ar=baseKeepRound(a), br=baseKeepRound(b); if (ar!==br) return ar-br; return fixName(a.name).localeCompare(fixName(b.name)); });
+    var k1 = sel[0] || null, k2 = sel[1] || null; var keepRounds=assignedKeepRounds();
+    function detail(p){
+      var drafted = p.draftedRound==null? "Undrafted" : ("Round "+p.draftedRound);
+      var baseR = baseKeepRound(p);
+      var assigned = keepRounds[p.id];
+      return '<div><div style="font-weight:600">'+fixName(p.name)+'</div>' +
+             '<div style="font-size:12px;margin-top:2px;">Drafted: '+drafted+'</div>' +
+             '<div style="font-size:12px;">Base Keep Rd: '+baseR+'</div>' +
+             '<div style="font-size:12px;font-weight:600;color:var(--tx-red)">Assigned Keep Rd: '+assigned+'</div></div>';
+    }
+    els.k1Body.innerHTML = k1 ? detail(k1) : "Select a player to assign as Keeper 1.";
+    var bumpNote = "";
+    if (k1 && k2 && baseKeepRound(k1) === baseKeepRound(k2)) bumpNote = '<div style="font-size:11px;margin-top:4px;color:var(--tx-blue)">Same base round as Keeper 1 — bumped one round later.</div>';
+    els.k2Body.innerHTML = k2 ? (detail(k2)+bumpNote) : "Select a second player to assign as Keeper 2.";
+  }
+
+  function renderTable(){
+    var rows = [];
+    var byMgrCounts = keptByMgrMap();
+    var keepRounds = assignedKeepRounds();
+    var filtered = selectedManager === "all" ? players : players.filter(function(p){ return p.manager === selectedManager; });
+    for (var i=0;i<filtered.length;i++){
+      var p = filtered[i];
+      var e = getEligibility(p);
+      var eligible = e.eligible;
+      var baseR = eligible ? baseKeepRound(p) : null;
+      var checked = !!selected[p.id] && eligible;
+      var mgrCount = byMgrCounts.get(p.manager) || 0;
+      var disabled = !eligible || (!checked && mgrCount >= 2);
+
+      if (!eligible && selected[p.id]) delete selected[p.id];
+
+      var tr = document.createElement("tr");
+
+      var tdKeep = document.createElement("td");
+      var cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = checked; cb.disabled = !!disabled;
+      cb.title = eligible ? ((!checked && mgrCount >= 2) ? "Limit reached (2 keepers for this manager)" : "Select keeper") : (e.reason || "Ineligible");
+      (function(id){ cb.addEventListener("change", function(){ toggleSelect(id); }); })(p.id);
+      tdKeep.appendChild(cb);
+
+      var tdName = document.createElement("td"); tdName.innerHTML = "<strong>"+fixName(p.name)+"</strong>";
+      var tdMgr = document.createElement("td"); tdMgr.textContent = p.manager;
+      var tdDraft = document.createElement("td"); tdDraft.textContent = p.draftedRound == null ? "Undrafted" : ("Round "+p.draftedRound);
+      var tdElig = document.createElement("td"); tdElig.textContent = eligible ? "Yes" : "No";
+      var tdBase = document.createElement("td"); tdBase.textContent = eligible ? ("Round "+baseR) : "—";
+      var tdAssigned = document.createElement("td"); tdAssigned.textContent = (checked && eligible) ? ("Round "+ keepRounds[p.id]) : "—";
+      var tdNotes = document.createElement("td"); tdNotes.textContent = eligible ? "" : (e.reason || "");
+
+      var tdAct = document.createElement("td");
+      var rm = document.createElement("button"); rm.className = "input"; rm.textContent = "Remove";
+      (function(id){ rm.addEventListener("click", function(){ removePlayer(id); }); })(p.id);
+      tdAct.appendChild(rm);
+
+      tr.appendChild(tdKeep);
+      tr.appendChild(tdName);
+      tr.appendChild(tdMgr);
+      tr.appendChild(tdDraft);
+      tr.appendChild(tdElig);
+      tr.appendChild(tdBase);
+      tr.appendChild(tdAssigned);
+      tr.appendChild(tdNotes);
+      tr.appendChild(tdAct);
+
+      rows.push(tr);
+    }
+    var tbody = els.tbody;
+    tbody.innerHTML = "";
+    for (var r=0;r<rows.length;r++) tbody.appendChild(rows[r]);
+
+    if (selectedManager === "all"){
+      var keptCount=0; for (var id in selected) if (selected[id]) keptCount++;
+      els.selBadge.textContent = "Selected (all): " + keptCount;
+    } else {
+      var count=0; for (var i=0;i<players.length;i++){ var p = players[i]; var e=getEligibility(p); if (p.manager===selectedManager && selected[p.id] && e.eligible) count++; }
+      els.selBadge.textContent = "Selected for " + selectedManager + ": " + count + "/2";
+    }
+    renderSummaryPanel();
+  }
+
+  function toggleSelect(id){
+    var p = null;
+    for (var i=0;i<players.length;i++){ if (players[i].id === id){ p = players[i]; break; } }
+    if (!p) return;
+    var e = getEligibility(p);
+    if (!e.eligible) return;
+
+    var willSelect = !selected[id];
+    if (willSelect){
+      var byMgrCounts = keptByMgrMap();
+      var mgrCount = byMgrCounts.get(p.manager) || 0;
+      if (mgrCount >= 2){ setSaveStatus("Limit reached (2)", "#A71930"); return; }
+    }
+    selected[id] = willSelect;
+    renderTable();
+    renderKeepersPanel();
+    try { localStorage.setItem("keeperTool:local", JSON.stringify({selected:selected, manager:selectedManager, ts:new Date().toISOString()})); } catch(e){}
+    scheduleAutoSave();
+  }
+  function removePlayer(id){
+    players = players.filter(function(p){ return p.id !== id; });
+    if (selected[id]) delete selected[id];
+    renderManagers();
+    renderTable();
+    renderKeepersPanel();
+    scheduleAutoSave();
+  }
+
+  document.getElementById("saveBtn").addEventListener("click", serverSave);
+  document.getElementById("toggleSummaryBtn").addEventListener("click", function(){ summaryVisible = !summaryVisible; renderSummaryPanel(); });
+  document.getElementById("managerFilter").addEventListener("change", function(e){
+    selectedManager = e.target.value;
+    clearSaveStatus();
+    renderTable();
+    renderKeepersPanel();
+    if (!lockManager && selectedManager !== "all") serverLoad(selectedManager);
+  });
+
+  (function init(){
+    var mgrs = (function(){ var s=Object.create(null); for (var i=0;i<players.length;i++){ s[players[i].manager]=true; } return Object.keys(s).sort(); })();
+    var elsMgr = els.mgrFilter; elsMgr.innerHTML="";
+    if (!lockManager){
+      var optAll = document.createElement("option"); optAll.value="all"; optAll.textContent="All Managers"; elsMgr.appendChild(optAll);
+    }
+    for (var i=0;i<mgrs.length;i++){ var m=mgrs[i]; var opt=document.createElement("option"); opt.value=m; opt.textContent=m; elsMgr.appendChild(opt); }
+    if (lockManager){
+      selectedManager = lockManager;
+      elsMgr.value = lockManager; elsMgr.disabled = true;
+      els.lockLabel.style.display = ""; els.lockLabel.textContent = "Locked to manager: " + lockManager;
+      serverLoad(lockManager);
+    } else {
+      elsMgr.value = "all";
+    }
+
+    renderTable();
+    renderKeepersPanel();
+  })();
+})();
+</script>
+</body>
+</html>
