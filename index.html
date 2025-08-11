@@ -178,6 +178,7 @@
       })
     );
     allSavesLoading = false;
+    if (selectedManager === "all" && summaryVisible) { try { renderSummaryPanel(); } catch(e){} }
   }
 
   function displayNameFromSave(s){
@@ -549,7 +550,7 @@
       elsMgr.value = "all";
       summaryVisible = true;
       // Preload summary cache once so "All Managers" is ready
-      loadAllSaves(false);
+      loadAllSaves(false).then(renderSummaryPanel);
     }
 
     renderTable();
