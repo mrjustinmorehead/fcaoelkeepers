@@ -156,7 +156,7 @@
   var players = PRELOADED.slice();
   var selected = Object.create(null);
   var selectedManager = "all";
-  var summaryVisible = false;
+  var summaryVisible = true;
 
   // Cache every manager's saved picks for the All Managers summary
   var allSaves = new Map(); // manager -> selections[]
@@ -547,6 +547,7 @@
       serverLoad(lockManager);
     } else {
       elsMgr.value = "all";
+      summaryVisible = true;
       // Preload summary cache once so "All Managers" is ready
       loadAllSaves(false);
     }
